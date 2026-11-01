@@ -1,0 +1,656 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  EDITOR
+}
+
+enum ContentStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum CollectionType {
+  SEASONAL
+  CURATED
+}
+
+enum AllergenLevel {
+  CONTAINS
+  MAY_CONTAIN
+}
+
+enum NavMenuKey {
+  HEADER
+  FOOTER_1
+  FOOTER_2
+}
+
+enum LinkType {
+  PAGE
+  PRODUCT
+  CATEGORY
+  POST
+  COLLECTION
+  EXTERNAL
+  PHONE
+  WHATSAPP
+  EMAIL
+}
+
+enum InquiryTopic {
+  GENERAL
+  CAKE_QUESTION
+}
+
+enum InquiryStatus {
+  NEW
+  IN_PROGRESS
+  DONE
+  ARCHIVED
+}
+
+// User & Better Auth Models
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  image         String?
+  role          Role      @default(EDITOR)
+  banned        Boolean   @default(false)
+  banReason     String?
+  banExpires    DateTime?
+  twoFactorEnabled Boolean @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+
+  posts         Post[]
+  revisions     ContentRevision[]
+
+  @@map("users")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  expiresAt DateTime
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model Account {
+  id           String    @id @default(cuid())
+  userId       String
+  accountId    String
+  providerId   String
+  accessToken  String?
+  refreshToken String?
+  idToken      String?
+  expiresAt    DateTime?
+  password     String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("accounts")
+}
+
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("verifications")
+}
+
+// Singleton Site Settings
+model SiteSettings {
+  id               String                   @id @default("singleton")
+  businessName     String                   @default("Swing Forn de Pa")
+  legalName        String?
+  taxId            String?
+  phone            String                   @default("+34 934 60 66 70")
+  whatsapp         String?
+  email            String?
+  street           String                   @default("Avd. Catalunya 39")
+  postcode         String                   @default("08917")
+  city             String                   @default("Badalona")
+  region           String                   @default("Barcelona")
+  country          String                   @default("España")
+  lat              Float                    @default(41.4502221)
+  lng              Float                    @default(2.2296483)
+  googleMapsUrl    String                   @default("https://maps.app.goo.gl/Vr26Zu4LZqhYDtpR8")
+  googlePlaceId    String?
+  googleReviewUrl  String?
+  instagramUrl     String?
+  facebookUrl      String?
+  defaultLocale    String                   @default("es")
+  enabledLocales   String[]                 @default(["ca", "es", "en"])
+  timeZone         String                   @default("Europe/Madrid")
+  showPrices       Boolean                  @default(false)
+  logoMediaId      String?
+  faviconMediaId   String?
+  defaultOgMediaId String?
+  brandTokens      Json?
+  analyticsId      String?
+  gscVerification  String?
+  bingVerification String?
+  updatedAt        DateTime                 @updatedAt
+  translations     SiteSettingsTranslation[]
+
+  @@map("site_settings")
+}
+
+model SiteSettingsTranslation {
+  id             String       @id @default(cuid())
+  siteSettingsId String       @default("singleton")
+  locale         String
+  tagline        String?
+  description    String?
+  announcement   String?
+  notFoundText   String?
+  siteSettings   SiteSettings @relation(fields: [siteSettingsId], references: [id], onDelete: Cascade)
+
+  @@unique([siteSettingsId, locale])
+  @@map("site_settings_translations")
+}
+
+model OpeningHours {
+  id        String   @id @default(cuid())
+  dayOfWeek Int      // 0 = Sunday, 1 = Monday ... 6 = Saturday
+  opensAt   String   // "06:00"
+  closesAt  String   // "21:00"
+  isClosed  Boolean  @default(false)
+
+  @@map("opening_hours")
+}
+
+model SpecialHours {
+  id        String   @id @default(cuid())
+  dateFrom  String   // "YYYY-MM-DD"
+  dateTo    String   // "YYYY-MM-DD"
+  isClosed  Boolean  @default(true)
+  opensAt   String?
+  closesAt  String?
+  noteCa    String?
+  noteEs    String?
+  noteEn    String?
+
+  @@map("special_hours")
+}
+
+model Page {
+  id           String            @id @default(cuid())
+  key          String            @unique
+  template     String            // HOME, MENU_INDEX, SEASONAL_INDEX, CUSTOM_CAKES, ABOUT, BLOG_INDEX, FAQ, CONTACT, LEGAL, GENERIC
+  status       ContentStatus     @default(DRAFT)
+  blocks       Json              @default("[]")
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  translations PageTranslation[]
+
+  @@map("pages")
+}
+
+model PageTranslation {
+  id              String   @id @default(cuid())
+  pageId          String
+  locale          String
+  slug            String
+  published       Boolean  @default(false)
+  title           String
+  intro           String?
+  metaTitle       String?
+  metaDescription String?
+  canonicalUrl    String?
+  ogTitle         String?
+  ogDescription   String?
+  ogImageId       String?
+  noindex         Boolean  @default(false)
+  nofollow        Boolean  @default(false)
+  jsonLdOverride  Json?
+  page            Page     @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@unique([pageId, locale])
+  @@unique([locale, slug])
+  @@map("page_translations")
+}
+
+model Category {
+  id           String                @id @default(cuid())
+  sortOrder    Int                   @default(0)
+  coverMediaId String?
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+  products     Product[]
+  translations CategoryTranslation[]
+
+  @@map("categories")
+}
+
+model CategoryTranslation {
+  id              String   @id @default(cuid())
+  categoryId      String
+  locale          String
+  slug            String
+  published       Boolean  @default(false)
+  name            String
+  description     String?
+  metaTitle       String?
+  metaDescription String?
+  category        Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([categoryId, locale])
+  @@unique([locale, slug])
+  @@map("category_translations")
+}
+
+model Product {
+  id                  String               @id @default(cuid())
+  categoryId          String
+  status              ContentStatus        @default(DRAFT)
+  priceCents          Int?
+  priceNote           String?              // e.g. "from", "kg"
+  isFeatured          Boolean              @default(false)
+  isSeasonal          Boolean              @default(false)
+  availableFrom       DateTime?
+  availableTo         DateTime?
+  dietaryTags         String[]             @default([])
+  allergensReviewedAt DateTime?
+  sortOrder           Int                  @default(0)
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  category            Category             @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  translations        ProductTranslation[]
+  allergens           ProductAllergen[]
+  media               ProductMedia[]
+  collectionItems     CollectionProduct[]
+
+  @@map("products")
+}
+
+model ProductTranslation {
+  id               String   @id @default(cuid())
+  productId        String
+  locale           String
+  slug             String
+  published        Boolean  @default(false)
+  name             String
+  shortDescription String?
+  longDescription  String?
+  ingredients      String?
+  availabilityNote String?
+  metaTitle        String?
+  metaDescription  String?
+  product          Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, locale])
+  @@unique([locale, slug])
+  @@map("product_translations")
+}
+
+model Allergen {
+  id           String                @id @default(cuid())
+  code         String                @unique // gluten, crustaceans, eggs, fish, peanuts, etc.
+  iconKey      String
+  translations AllergenTranslation[]
+  products     ProductAllergen[]
+
+  @@map("allergens")
+}
+
+model AllergenTranslation {
+  id         String   @id @default(cuid())
+  allergenId String
+  locale     String
+  name       String
+  allergen   Allergen @relation(fields: [allergenId], references: [id], onDelete: Cascade)
+
+  @@unique([allergenId, locale])
+  @@map("allergen_translations")
+}
+
+model ProductAllergen {
+  id         String        @id @default(cuid())
+  productId  String
+  allergenId String
+  level      AllergenLevel @default(CONTAINS)
+  product    Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  allergen   Allergen      @relation(fields: [allergenId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, allergenId])
+  @@map("product_allergens")
+}
+
+model ProductMedia {
+  id        String  @id @default(cuid())
+  productId String
+  mediaId   String
+  sortOrder Int     @default(0)
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@map("product_media")
+}
+
+model Collection {
+  id           String                  @id @default(cuid())
+  type         CollectionType          @default(SEASONAL)
+  startsOn     DateTime?
+  endsOn       DateTime?
+  heroMediaId  String?
+  createdAt    DateTime                @default(now())
+  updatedAt    DateTime                @updatedAt
+  translations CollectionTranslation[]
+  products     CollectionProduct[]
+
+  @@map("collections")
+}
+
+model CollectionTranslation {
+  id              String     @id @default(cuid())
+  collectionId    String
+  locale          String
+  slug            String
+  published       Boolean    @default(false)
+  name            String
+  story           String?
+  metaTitle       String?
+  metaDescription String?
+  collection      Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+
+  @@unique([collectionId, locale])
+  @@unique([locale, slug])
+  @@map("collection_translations")
+}
+
+model CollectionProduct {
+  id           String     @id @default(cuid())
+  collectionId String
+  productId    String
+  sortOrder    Int        @default(0)
+  collection   Collection @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  product      Product    @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([collectionId, productId])
+  @@map("collection_products")
+}
+
+model PostCategory {
+  id           String                    @id @default(cuid())
+  createdAt    DateTime                  @default(now())
+  translations PostCategoryTranslation[]
+  posts        Post[]
+
+  @@map("post_categories")
+}
+
+model PostCategoryTranslation {
+  id             String       @id @default(cuid())
+  postCategoryId String
+  locale         String
+  slug           String
+  name           String
+  postCategory   PostCategory @relation(fields: [postCategoryId], references: [id], onDelete: Cascade)
+
+  @@unique([postCategoryId, locale])
+  @@unique([locale, slug])
+  @@map("post_category_translations")
+}
+
+model Post {
+  id           String            @id @default(cuid())
+  authorId     String
+  categoryId   String?
+  coverMediaId String?
+  status       ContentStatus     @default(DRAFT)
+  publishedAt  DateTime?
+  isFeatured   Boolean           @default(false)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  author       User              @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  category     PostCategory?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  translations PostTranslation[]
+
+  @@map("posts")
+}
+
+model PostTranslation {
+  id              String   @id @default(cuid())
+  postId          String
+  locale          String
+  slug            String
+  published       Boolean  @default(false)
+  title           String
+  excerpt         String?
+  content         Json?
+  readingMinutes  Int      @default(3)
+  metaTitle       String?
+  metaDescription String?
+  post            Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, locale])
+  @@unique([locale, slug])
+  @@map("post_translations")
+}
+
+model FaqCategory {
+  id           String                   @id @default(cuid())
+  sortOrder    Int                      @default(0)
+  translations FaqCategoryTranslation[]
+  faqs         Faq[]
+
+  @@map("faq_categories")
+}
+
+model FaqCategoryTranslation {
+  id            String      @id @default(cuid())
+  faqCategoryId String
+  locale        String
+  name          String
+  faqCategory   FaqCategory @relation(fields: [faqCategoryId], references: [id], onDelete: Cascade)
+
+  @@unique([faqCategoryId, locale])
+  @@map("faq_category_translations")
+}
+
+model Faq {
+  id           String           @id @default(cuid())
+  categoryId   String
+  sortOrder    Int              @default(0)
+  category     FaqCategory      @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  translations FaqTranslation[]
+
+  @@map("faqs")
+}
+
+model FaqTranslation {
+  id       String  @id @default(cuid())
+  faqId    String
+  locale   String
+  question String
+  answer   String  // Rich text or html
+  faq      Faq     @relation(fields: [faqId], references: [id], onDelete: Cascade)
+
+  @@unique([faqId, locale])
+  @@map("faq_translations")
+}
+
+model Testimonial {
+  id             String                   @id @default(cuid())
+  authorName     String
+  sourceLabel    String                   // e.g. "Customer, 2026"
+  optionalLink   String?
+  consentGivenAt DateTime                 @default(now())
+  isFeatured     Boolean                  @default(true)
+  createdAt      DateTime                 @default(now())
+  translations   TestimonialTranslation[]
+
+  @@map("testimonials")
+}
+
+model TestimonialTranslation {
+  id            String      @id @default(cuid())
+  testimonialId String
+  locale        String
+  quote         String
+  testimonial   Testimonial @relation(fields: [testimonialId], references: [id], onDelete: Cascade)
+
+  @@unique([testimonialId, locale])
+  @@map("testimonial_translations")
+}
+
+model MediaAsset {
+  id           String                  @id @default(cuid())
+  publicId     String                  @unique
+  resourceType String                  @default("image")
+  width        Int
+  height       Int
+  format       String
+  bytes        Int
+  folder       String
+  tags         String[]                @default([])
+  createdAt    DateTime                @default(now())
+  translations MediaAssetTranslation[]
+
+  @@map("media_assets")
+}
+
+model MediaAssetTranslation {
+  id           String     @id @default(cuid())
+  mediaAssetId String
+  locale       String
+  alt          String
+  caption      String?
+  mediaAsset   MediaAsset @relation(fields: [mediaAssetId], references: [id], onDelete: Cascade)
+
+  @@unique([mediaAssetId, locale])
+  @@map("media_asset_translations")
+}
+
+model NavMenu {
+  id        String     @id @default(cuid())
+  key       NavMenuKey @unique
+  items     NavItem[]
+
+  @@map("nav_menus")
+}
+
+model NavItem {
+  id           String               @id @default(cuid())
+  menuId       String
+  parentId     String?
+  sortOrder    Int                  @default(0)
+  linkType     LinkType             @default(PAGE)
+  targetId     String?
+  externalUrl  String?
+  menu         NavMenu              @relation(fields: [menuId], references: [id], onDelete: Cascade)
+  parent       NavItem?             @relation("NavItemToParent", fields: [parentId], references: [id], onDelete: Cascade)
+  children     NavItem[]            @relation("NavItemToParent")
+  translations NavItemTranslation[]
+
+  @@map("nav_items")
+}
+
+model NavItemTranslation {
+  id        String  @id @default(cuid())
+  navItemId String
+  locale    String
+  label     String
+  navItem   NavItem @relation(fields: [navItemId], references: [id], onDelete: Cascade)
+
+  @@unique([navItemId, locale])
+  @@map("nav_item_translations")
+}
+
+model Redirect {
+  id        String   @id @default(cuid())
+  fromPath  String   @unique
+  toPath    String
+  status    Int      @default(301)
+  hits      Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@map("redirects")
+}
+
+model Inquiry {
+  id               String        @id @default(cuid())
+  topic            InquiryTopic  @default(GENERAL)
+  name             String
+  email            String
+  phone            String?
+  preferredContact String        @default("whatsapp")
+  message          String
+  productRefId     String?
+  status           InquiryStatus @default(NEW)
+  internalNotes    String?
+  locale           String        @default("es")
+  consentAt        DateTime      @default(now())
+  consentVersion   String        @default("v1")
+  ipHash           String
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@map("inquiries")
+}
+
+model ContentRevision {
+  id         String   @id @default(cuid())
+  entityType String   // Page, Post, Product
+  entityId   String
+  locale     String
+  snapshot   Json
+  authorId   String
+  createdAt  DateTime @default(now())
+  author     User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@map("content_revisions")
+}
+
+model RateLimit {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  windowStart DateTime
+  count       Int      @default(1)
+
+  @@map("rate_limits")
+}
+
+model UiString {
+  id           String                @id @default(cuid())
+  key          String                @unique
+  translations UiStringTranslation[]
+
+  @@map("ui_strings")
+}
+
+model UiStringTranslation {
+  id         String   @id @default(cuid())
+  uiStringId String
+  locale     String
+  text       String
+  uiString   UiString @relation(fields: [uiStringId], references: [id], onDelete: Cascade)
+
+  @@unique([uiStringId, locale])
+  @@map("ui_string_translations")
+}

@@ -43,18 +43,15 @@ const DEFAULT_SLUG_MAP: Record<string, ResolvedPageType> = {
 
   // Spanish
   "productos": "MENU_INDEX",
-  "temporada": "SEASONAL_INDEX",
   "especialidades": "SEASONAL_INDEX",
   "tartas-personalizadas": "CUSTOM_CAKES",
   "sobre-nosotros": "ABOUT",
-  "blog": "BLOG_INDEX",
   "preguntas-frecuentes": "FAQ",
   "faq": "FAQ",
   "contacto": "CONTACT",
   "aviso-legal": "LEGAL",
   "politica-privacidad": "LEGAL",
   "politica-de-privacidad": "LEGAL",
-  "politica-cookies": "LEGAL",
   "informacion-alergenos": "LEGAL",
 
   // English
@@ -96,7 +93,7 @@ export async function resolvePath(
   // Nested routes (e.g. /es/productos/croissant, /ca/especialitats/panellets)
   if (segments.length === 2) {
     const subSlug = segments[1]?.toLowerCase();
-    if (["productos", "productes", "menu"].includes(primarySegment)) {
+    if (["productos", "productes", "producto", "producte", "menu", "products"].includes(primarySegment)) {
       return { type: "PRODUCT", slug: subSlug, params: { categoryOrProduct: subSlug } };
     }
     if (["especialidades", "especialitats", "seasonal"].includes(primarySegment)) {

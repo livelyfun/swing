@@ -1,0 +1,8 @@
+{
+  "name": "Swing Forn de Pa",
+  "description": "Forn de pa artesà i pastisseria de barri a Badalona - Avd. Catalunya 39.",
+  "permissions": [],
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

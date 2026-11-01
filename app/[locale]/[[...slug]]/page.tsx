@@ -1,11 +1,20 @@
 import React from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import { isValidLocale, Locale, getDictionary } from "@/lib/i18n";
 import { resolvePath } from "@/lib/resolve-path";
 import { getBakeryOpenStatus } from "@/lib/hours";
 import { getSiteSettings, getWeeklyHours } from "@/lib/settings";
 import { contentStore } from "@/lib/content-store";
+import { constructMetadata, getBaseUrl } from "@/lib/seo";
+import {
+  buildBakeryJsonLd,
+  buildBreadcrumbJsonLd,
+  buildProductJsonLd,
+  buildBlogPostJsonLd,
+  buildFaqJsonLd,
+} from "@/lib/jsonld";
 import { ConsentGatedMap } from "@/components/public/ConsentGatedMap";
 import { ContactInquiryForm } from "@/components/public/ContactInquiryForm";
 import { FaqAccordion } from "@/components/public/FaqAccordion";
@@ -36,6 +45,137 @@ interface PageProps {
   }>;
 }
 
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { locale, slug = [] } = await params;
+  if (!isValidLocale(locale)) return {};
+
+  const validLocale = locale as Locale;
+  const resolved = await resolvePath(validLocale, slug);
+
+  if (resolved.type === "NOT_FOUND") {
+    return constructMetadata({
+      locale: validLocale,
+      title: validLocale === "ca" ? "Pàgina no trobada" : "Página no encontrada",
+      noIndex: true,
+    });
+  }
+
+  const pathStr = slug.join("/");
+
+  if (resolved.type === "HOME") {
+    return constructMetadata({
+      locale: validLocale,
+      path: "",
+    });
+  }
+
+  if (resolved.type === "PRODUCT" && resolved.slug) {
+    const product = contentStore.getProductBySlug(resolved.slug, validLocale);
+    if (product) {
+      return constructMetadata({
+        locale: validLocale,
+        path: pathStr,
+        title: product.name[validLocale] || product.name.es,
+        description: product.description[validLocale] || product.description.es,
+      });
+    }
+  }
+
+  if (resolved.type === "POST" && resolved.slug) {
+    const post = contentStore.getPostBySlug(resolved.slug, validLocale);
+    if (post) {
+      return constructMetadata({
+        locale: validLocale,
+        path: pathStr,
+        title: post.title[validLocale] || post.title.es,
+        description: post.excerpt[validLocale] || post.excerpt.es,
+        type: "article",
+        publishedTime: post.publishedAt,
+      });
+    }
+  }
+
+  if (resolved.type === "CAMPAIGN" && resolved.slug) {
+    const campaign = contentStore.getCampaignBySlug(resolved.slug, validLocale);
+    if (campaign) {
+      return constructMetadata({
+        locale: validLocale,
+        path: pathStr,
+        title: campaign.name[validLocale] || campaign.name.es,
+        description: campaign.story[validLocale] || campaign.story.es,
+      });
+    }
+  }
+
+  if (resolved.type === "MENU_INDEX") {
+    return constructMetadata({
+      locale: validLocale,
+      path: pathStr,
+      title: validLocale === "ca" ? "Carta de Pans i Pastisseria" : "Carta de Panes y Repostería",
+      description: "Pans de massa mare, rebosteria artesana i brioixeria a Badalona.",
+    });
+  }
+
+  if (resolved.type === "CUSTOM_CAKES") {
+    return constructMetadata({
+      locale: validLocale,
+      path: pathStr,
+      title: validLocale === "ca" ? "Pastissos Personalitzats" : "Tartas Personalizadas",
+      description: "Tartes artesanes d'aniversari i celebracions a Badalona. Consulta sabors i mides.",
+    });
+  }
+
+  if (resolved.type === "SEASONAL_INDEX") {
+    return constructMetadata({
+      locale: validLocale,
+      path: pathStr,
+      title: validLocale === "ca" ? "Dolços de Temporada" : "Dulces de Temporada",
+      description: "Panellets, tortell de Reis i especialitats de temporada a Badalona.",
+    });
+  }
+
+  if (resolved.type === "ABOUT") {
+    return constructMetadata({
+      locale: validLocale,
+      path: pathStr,
+      title: validLocale === "ca" ? "El Nostre Obrador" : "Nuestro Obrador",
+      description: "Forn de pa de barri a l'Avd. Catalunya 39, Badalona. Tradició i massa mare.",
+    });
+  }
+
+  if (resolved.type === "BLOG_INDEX") {
+    return constructMetadata({
+      locale: validLocale,
+      path: pathStr,
+      title: validLocale === "ca" ? "Blog de l'Obrador" : "Blog del Obrador",
+      description: "Secrets de fleca, conservació del pa i receptes tradicionals.",
+    });
+  }
+
+  if (resolved.type === "FAQ") {
+    return constructMetadata({
+      locale: validLocale,
+      path: pathStr,
+      title: validLocale === "ca" ? "Preguntes Freqüents" : "Preguntas Frecuentes",
+      description: "Horaris, encàrrecs de pastissos i gestió dels 14 al·lèrgens.",
+    });
+  }
+
+  if (resolved.type === "CONTACT") {
+    return constructMetadata({
+      locale: validLocale,
+      path: pathStr,
+      title: validLocale === "ca" ? "Contacte i Ubicació" : "Contacto y Ubicación",
+      description: "On trobar-nos a Badalona, horaris complets, telèfon i WhatsApp.",
+    });
+  }
+
+  return constructMetadata({
+    locale: validLocale,
+    path: pathStr,
+  });
+}
+
 export default async function PublicPage({ params }: PageProps) {
   const { locale, slug = [] } = await params;
 
@@ -64,11 +204,35 @@ export default async function PublicPage({ params }: PageProps) {
   const allPosts = contentStore.getPosts();
   const allFaqs = contentStore.getFaqs();
   const allTestimonials = contentStore.getTestimonials();
+  const baseUrl = getBaseUrl();
+  const bakeryJsonLd = buildBakeryJsonLd(settings, weeklyHours, baseUrl);
+
+  const breadcrumbItems = [{ name: validLocale === "ca" ? "Inici" : "Inicio", path: `/${validLocale}` }];
+  if (resolved.type === "MENU_INDEX") {
+    breadcrumbItems.push({ name: dict.menu, path: `/${validLocale}/productos` });
+  } else if (resolved.type === "CUSTOM_CAKES") {
+    breadcrumbItems.push({ name: dict.customCakes, path: `/${validLocale}/tartas-personalizadas` });
+  } else if (resolved.type === "SEASONAL_INDEX" || resolved.type === "CAMPAIGN") {
+    breadcrumbItems.push({ name: dict.seasonal, path: `/${validLocale}/temporada` });
+  } else if (resolved.type === "ABOUT") {
+    breadcrumbItems.push({ name: dict.about, path: `/${validLocale}/sobre-nosotros` });
+  } else if (resolved.type === "BLOG_INDEX" || resolved.type === "POST") {
+    breadcrumbItems.push({ name: dict.blog, path: `/${validLocale}/blog` });
+  } else if (resolved.type === "FAQ") {
+    breadcrumbItems.push({ name: dict.faq, path: `/${validLocale}/preguntas-frecuentes` });
+  } else if (resolved.type === "CONTACT") {
+    breadcrumbItems.push({ name: dict.contact, path: `/${validLocale}/contacto` });
+  }
+  const breadcrumbJsonLd = buildBreadcrumbJsonLd(breadcrumbItems, baseUrl);
 
   // 1. HOME PAGE
   if (resolved.type === "HOME") {
     return (
       <div className="flex flex-col">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(bakeryJsonLd) }}
+        />
         {/* HERO SECTION */}
         <section className="relative overflow-hidden bg-gradient-to-b from-[#FFF8EF] via-[#FFF8EF] to-[#F1E4D3]/40 pt-10 pb-16 lg:pt-16 lg:pb-24 border-b border-[#D9C4A8]/40">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -428,10 +592,180 @@ export default async function PublicPage({ params }: PageProps) {
     );
   }
 
-  // 2. MENU / PRODUCTS
+  // 2. PRODUCT DETAIL PAGE
+  if (resolved.type === "PRODUCT" && resolved.slug) {
+    const product = contentStore.getProductBySlug(resolved.slug, validLocale);
+    if (product) {
+      const productJsonLd = buildProductJsonLd(product, validLocale, baseUrl, settings);
+      const related = allProducts.filter((p) => p.id !== product.id).slice(0, 3);
+      return (
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-10">
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: JSON.stringify(bakeryJsonLd) }}
+          />
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+          />
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }}
+          />
+
+          {/* Breadcrumb nav */}
+          <div className="flex items-center gap-2 text-xs text-stone-500">
+            <Link href={`/${validLocale}`} className="hover:text-[#A8531C] underline">
+              {validLocale === "ca" ? "Inici" : "Inicio"}
+            </Link>
+            <span>/</span>
+            <Link href={`/${validLocale}/productos`} className="hover:text-[#A8531C] underline">
+              {dict.menu}
+            </Link>
+            <span>/</span>
+            <span className="font-semibold text-stone-900">
+              {product.name[validLocale] || product.name.es}
+            </span>
+          </div>
+
+          <div className="bg-white rounded-3xl p-6 sm:p-10 border border-[#D9C4A8] shadow-sm grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
+            <div className="md:col-span-7 space-y-5">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#F1E4D3] text-[#A8531C] text-xs font-semibold">
+                <Wheat className="w-3.5 h-3.5" />
+                <span>{product.badge || (validLocale === "ca" ? "Elaborat a l'obrador" : "Elaborado en obrador")}</span>
+              </div>
+              <h1 className="text-3xl sm:text-4xl font-serif font-bold text-[#3B2A20]">
+                {product.name[validLocale] || product.name.es}
+              </h1>
+              <p className="text-base text-[#5C4638] leading-relaxed">
+                {product.description[validLocale] || product.description.es}
+              </p>
+
+              {settings.showPrices && product.priceCents && (
+                <div className="text-2xl font-bold font-serif text-[#A8531C]">
+                  {(product.priceCents / 100).toFixed(2)} €
+                </div>
+              )}
+
+              {/* EU 1169/2011 14 Allergens declaration panel */}
+              <div className="p-5 rounded-2xl bg-[#FFF8EF] border border-[#D9C4A8] space-y-3">
+                <div className="flex items-center justify-between border-b border-[#D9C4A8]/40 pb-2">
+                  <div className="flex items-center gap-2 font-serif font-bold text-sm text-[#3B2A20]">
+                    <ShieldCheck className="w-4 h-4 text-[#A8531C]" />
+                    <span>Informació d'al·lèrgens (Reglament UE 1169/2011)</span>
+                  </div>
+                  {product.allergensReviewedAt ? (
+                    <span className="text-[10px] font-semibold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full">
+                      Revisat {new Date(product.allergensReviewedAt).toLocaleDateString("ca-ES")}
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-semibold text-amber-800 bg-amber-100 px-2 py-0.5 rounded-full">
+                      Pendent de revisió
+                    </span>
+                  )}
+                </div>
+
+                <div className="space-y-1.5 text-xs text-[#5C4638]">
+                  <p>
+                    <strong>Al·lèrgens presents declarats:</strong>{" "}
+                    {product.allergens.length > 0 ? (
+                      <span className="font-semibold text-stone-900">{product.allergens.join(", ")}</span>
+                    ) : (
+                      <span className="text-emerald-700 font-semibold">Sense al·lèrgens comuns declarats</span>
+                    )}
+                  </p>
+                  <p className="text-[11px] text-stone-500 leading-snug">
+                    * Al nostre obrador treballem amb farines i ingredients tradicionals. No podem descartar totalment la presència de traces per contacte creuat en productes no envasats.
+                  </p>
+                </div>
+              </div>
+
+              {/* CTAs */}
+              <div className="flex flex-wrap items-center gap-3 pt-2">
+                <a
+                  href={`https://wa.me/${cleanPhone.replace("+", "")}?text=${encodeURIComponent(
+                    `Hola! Vull encarregar o consultar disponibilitat de ${product.name[validLocale] || product.name.es}`
+                  )}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-emerald-700 text-white font-semibold text-sm hover:bg-emerald-800 transition-colors shadow-xs text-decoration-none"
+                >
+                  <MessageCircle className="w-4 h-4" />
+                  <span>Demanar per WhatsApp</span>
+                </a>
+                <a
+                  href={`tel:${cleanPhone}`}
+                  className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-[#3B2A20] text-white font-semibold text-sm hover:bg-stone-800 transition-colors shadow-xs text-decoration-none"
+                >
+                  <Phone className="w-4 h-4 text-[#E9B44C]" />
+                  <span>Trucar al forn</span>
+                </a>
+              </div>
+            </div>
+
+            {/* Quick Inquiry on this product */}
+            <div className="md:col-span-5 bg-[#FFF8EF] rounded-2xl p-6 border border-[#D9C4A8] space-y-4">
+              <h3 className="font-serif font-bold text-lg text-[#3B2A20]">
+                {validLocale === "ca" ? "Vols encarregar aquest producte?" : "¿Quieres encargar este producto?"}
+              </h3>
+              <p className="text-xs text-[#5C4638] leading-relaxed">
+                Pots trucar-nos al {settings.phone} o escriure'ns directament per acordar data de recollida a l'obrador de Badalona.
+              </p>
+              <div className="pt-2">
+                <Link
+                  href={`/${validLocale}/contacto`}
+                  className="block w-full py-2.5 rounded-xl bg-[#A8531C] text-white font-semibold text-xs text-center hover:bg-[#8f4314] transition-colors shadow-xs text-decoration-none"
+                >
+                  {dict.contact}
+                </Link>
+              </div>
+            </div>
+          </div>
+
+          {/* Related products */}
+          {related.length > 0 && (
+            <div className="space-y-4 pt-6">
+              <h2 className="font-serif font-bold text-2xl text-[#3B2A20]">
+                {validLocale === "ca" ? "Altres elaborats de l'obrador" : "Otras elaboraciones del obrador"}
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
+                {related.map((item) => (
+                  <Link
+                    key={item.id}
+                    href={`/${validLocale}/productos/${item.slug[validLocale] || item.slug.es}`}
+                    className="p-5 rounded-2xl bg-white border border-[#D9C4A8] shadow-xs hover:shadow-md transition-shadow block text-decoration-none"
+                  >
+                    <span className="text-[10px] font-bold text-[#A8531C] px-2 py-0.5 rounded-full bg-[#F1E4D3]">
+                      {item.badge || "Artesà"}
+                    </span>
+                    <h3 className="font-serif font-bold text-base text-[#3B2A20] mt-2">
+                      {item.name[validLocale] || item.name.es}
+                    </h3>
+                    <p className="text-xs text-[#5C4638] line-clamp-2 mt-1">
+                      {item.description[validLocale] || item.description.es}
+                    </p>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    }
+  }
+
+  // 3. MENU INDEX
   if (resolved.type === "MENU_INDEX" || resolved.type === "PRODUCT") {
     return (
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-8">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(bakeryJsonLd) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+        />
         <div className="space-y-3">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#F1E4D3] text-[#A8531C] text-xs font-semibold">
             <Wheat className="w-3.5 h-3.5" />

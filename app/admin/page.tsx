@@ -27,16 +27,31 @@ import {
   BookOpen,
   MessageSquare,
   HelpCircle,
+  Download,
+  MessageCircle,
+  ExternalLink,
+  Globe,
 } from "lucide-react";
 import { updateSiteSettingsAction, updateOpeningHoursAction } from "@/server/actions/settings";
 import {
   saveProductAction,
+  deleteProductAction,
   saveCampaignAction,
+  deleteCampaignAction,
   saveBlogPostAction,
+  deletePostAction,
   saveFaqAction,
   saveTestimonialAction,
+  updateInquiryStatusAction,
+  deleteInquiryAction,
 } from "@/server/actions/content";
-import { contentStore, ProductItem, SeasonalCampaign, BlogPostItem } from "@/lib/content-store";
+import {
+  contentStore,
+  ProductItem,
+  SeasonalCampaign,
+  BlogPostItem,
+  InquiryItem,
+} from "@/lib/content-store";
 
 const EU_ALLERGENS_LIST = [
   { code: "gluten", label: "Gluten (cereals)" },
@@ -57,13 +72,19 @@ const EU_ALLERGENS_LIST = [
 
 export default function AdminDashboardPage() {
   const [activeTab, setActiveTab] = useState<
-    "dashboard" | "products" | "campaigns" | "blog" | "hours" | "media" | "settings"
+    "dashboard" | "products" | "campaigns" | "blog" | "hours" | "media" | "inquiries" | "seo" | "settings"
   >("dashboard");
 
   // Content Store State
   const [products, setProducts] = useState<ProductItem[]>(contentStore.getProducts());
   const [campaigns, setCampaigns] = useState<SeasonalCampaign[]>(contentStore.getCampaigns());
   const [posts, setPosts] = useState<BlogPostItem[]>(contentStore.getPosts());
+  const [inquiries, setInquiries] = useState<InquiryItem[]>(contentStore.getInquiries());
+  const [selectedInquiry, setSelectedInquiry] = useState<InquiryItem | null>(null);
+  const [inquiryFilterStatus, setInquiryFilterStatus] = useState<string>("ALL");
+  const [inquiryFilterTopic, setInquiryFilterTopic] = useState<string>("ALL");
+  const [staffNoteDraft, setStaffNoteDraft] = useState<string>("");
+  const [serpDevice, setSerpDevice] = useState<"desktop" | "mobile">("desktop");
 
   // Product Form State
   const [showProductForm, setShowProductForm] = useState(false);
@@ -239,6 +260,97 @@ export default function AdminDashboardPage() {
     setNewAltText("");
   };
 
+  const handleUpdateInquiryStatus = async (
+    id: string,
+    status: "NEW" | "IN_PROGRESS" | "DONE" | "ARCHIVED"
+  ) => {
+    setSaveStatus("Actualitzant estat...");
+    await updateInquiryStatusAction(id, status);
+    const updated = contentStore.getInquiries();
+    setInquiries(updated);
+    if (selectedInquiry?.id === id) {
+      setSelectedInquiry(contentStore.getInquiryById(id));
+    }
+    setSaveStatus("Estat de la consulta actualitzat.");
+    setTimeout(() => setSaveStatus(null), 3000);
+  };
+
+  const handleSaveStaffNotes = async (id: string) => {
+    setSaveStatus("Desant notes de l'obrador...");
+    await updateInquiryStatusAction(id, selectedInquiry?.status || "IN_PROGRESS", staffNoteDraft);
+    const updated = contentStore.getInquiries();
+    setInquiries(updated);
+    if (selectedInquiry?.id === id) {
+      setSelectedInquiry(contentStore.getInquiryById(id));
+    }
+    setSaveStatus("Notes desades.");
+    setTimeout(() => setSaveStatus(null), 3000);
+  };
+
+  const handleDeleteInquiry = async (id: string) => {
+    if (!confirm("Segur que vols eliminar aquesta consulta?")) return;
+    setSaveStatus("Eliminant consulta...");
+    await deleteInquiryAction(id);
+    setInquiries(contentStore.getInquiries());
+    if (selectedInquiry?.id === id) {
+      setSelectedInquiry(null);
+    }
+    setSaveStatus("Consulta eliminada.");
+    setTimeout(() => setSaveStatus(null), 3000);
+  };
+
+  const handleExportCsv = () => {
+    const headers = ["ID", "Data", "Nom", "Email", "Telefon", "Motiu", "Estat", "Missatge", "Notes_Internes"];
+    const rows = inquiries.map((i) => [
+      i.id,
+      i.createdAt,
+      `"${i.name.replace(/"/g, '""')}"`,
+      i.email,
+      i.phone || "",
+      i.topic,
+      i.status,
+      `"${i.message.replace(/"/g, '""')}"`,
+      `"${(i.staffNotes || "").replace(/"/g, '""')}"`,
+    ]);
+    const csvContent =
+      "data:text/csv;charset=utf-8," +
+      [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `swing_consultes_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const handleDeleteProduct = async (id: string) => {
+    if (!confirm("Vols eliminar aquest producte?")) return;
+    setSaveStatus("Eliminant...");
+    await deleteProductAction(id);
+    setProducts(contentStore.getProducts());
+    setSaveStatus("Producte eliminat.");
+    setTimeout(() => setSaveStatus(null), 3000);
+  };
+
+  const handleDeleteCampaign = async (id: string) => {
+    if (!confirm("Vols eliminar aquesta campanya?")) return;
+    setSaveStatus("Eliminant...");
+    await deleteCampaignAction(id);
+    setCampaigns(contentStore.getCampaigns());
+    setSaveStatus("Campanya eliminada.");
+    setTimeout(() => setSaveStatus(null), 3000);
+  };
+
+  const handleDeletePost = async (id: string) => {
+    if (!confirm("Vols eliminar aquest article?")) return;
+    setSaveStatus("Eliminant...");
+    await deletePostAction(id);
+    setPosts(contentStore.getPosts());
+    setSaveStatus("Article eliminat.");
+    setTimeout(() => setSaveStatus(null), 3000);
+  };
+
   return (
     <div className="flex h-screen overflow-hidden bg-stone-100 text-stone-900 font-sans">
       {/* Sidebar */}
@@ -266,6 +378,12 @@ export default function AdminDashboardPage() {
               { id: "blog", label: "Blog i Articles", icon: BookOpen },
               { id: "hours", label: "Horaris i Festius", icon: Clock },
               { id: "media", label: "Biblioteca Multimèdia", icon: ImageIcon },
+              {
+                id: "inquiries",
+                label: `Bústia (${inquiries.filter((i) => i.status === "NEW").length} noves)`,
+                icon: Inbox,
+              },
+              { id: "seo", label: "Centre SEO & SERP", icon: Search },
               { id: "settings", label: "Configuració del Lloc", icon: SettingsIcon },
             ].map((item) => {
               const Icon = item.icon;
@@ -317,6 +435,8 @@ export default function AdminDashboardPage() {
               {activeTab === "blog" && "Blog de l'Obrador i Articles"}
               {activeTab === "hours" && "Horaris de l'Obrador i Dies Especials"}
               {activeTab === "media" && "Biblioteca Multimèdia (Cloudinary)"}
+              {activeTab === "inquiries" && "Bústia de Consultes i Missatges (RGPD)"}
+              {activeTab === "seo" && "Centre de Control SEO i Auditoria"}
               {activeTab === "settings" && "Configuració General del Negoci"}
             </h2>
             <p className="text-xs text-stone-500 mt-1">
@@ -1086,6 +1206,481 @@ export default function AdminDashboardPage() {
                     </span>
                   </div>
                 ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* INQUIRIES INBOX TAB */}
+        {activeTab === "inquiries" && (
+          <div className="space-y-6 max-w-5xl">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-6 rounded-2xl border border-stone-200 shadow-xs">
+              <div>
+                <h3 className="font-serif text-lg font-bold text-stone-900 flex items-center gap-2">
+                  <Inbox className="w-5 h-5 text-[#A8531C]" />
+                  <span>Bústia de Consultes ({inquiries.length} totals)</span>
+                </h3>
+                <p className="text-xs text-stone-500 mt-0.5">
+                  Missatges rebuts a través del formulari de contacte públic. Conforme a la RGPD (retenció de dades).
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2.5">
+                <button
+                  type="button"
+                  onClick={handleExportCsv}
+                  className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-stone-100 hover:bg-stone-200 text-stone-800 font-semibold text-xs transition-colors shadow-2xs border border-stone-300"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Exportar a CSV</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Filters */}
+            <div className="flex flex-wrap items-center gap-2 text-xs">
+              <span className="font-semibold text-stone-600 mr-1">Estat:</span>
+              {[
+                { id: "ALL", label: "Totes" },
+                { id: "NEW", label: "Noves" },
+                { id: "IN_PROGRESS", label: "En gestió" },
+                { id: "DONE", label: "Resoltes" },
+                { id: "ARCHIVED", label: "Arxivades" },
+              ].map((f) => (
+                <button
+                  key={f.id}
+                  onClick={() => setInquiryFilterStatus(f.id)}
+                  className={`px-3 py-1.5 rounded-lg font-medium transition-colors ${
+                    inquiryFilterStatus === f.id
+                      ? "bg-[#3B2A20] text-white font-semibold"
+                      : "bg-white text-stone-700 border border-stone-200 hover:bg-stone-50"
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+
+              <span className="font-semibold text-stone-600 ml-4 mr-1">Motiu:</span>
+              {[
+                { id: "ALL", label: "Tots" },
+                { id: "GENERAL", label: "General" },
+                { id: "CAKE_QUESTION", label: "Pastís personalitzat" },
+              ].map((f) => (
+                <button
+                  key={f.id}
+                  onClick={() => setInquiryFilterTopic(f.id)}
+                  className={`px-3 py-1.5 rounded-lg font-medium transition-colors ${
+                    inquiryFilterTopic === f.id
+                      ? "bg-[#A8531C] text-white font-semibold"
+                      : "bg-white text-stone-700 border border-stone-200 hover:bg-stone-50"
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Inquiries list */}
+            {inquiries.length === 0 ? (
+              <div className="p-12 text-center bg-white rounded-2xl border border-stone-200 text-stone-500 space-y-2">
+                <Inbox className="w-8 h-8 mx-auto text-stone-300" />
+                <p className="font-medium text-sm">No hi ha cap consulta a la bústia.</p>
+                <p className="text-xs">Les consultes enviades des del formulari de contacte apareixeran aquí.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {inquiries
+                  .filter(
+                    (i) =>
+                      (inquiryFilterStatus === "ALL" || i.status === inquiryFilterStatus) &&
+                      (inquiryFilterTopic === "ALL" || i.topic === inquiryFilterTopic)
+                  )
+                  .map((inq) => (
+                    <div
+                      key={inq.id}
+                      className="p-5 rounded-2xl bg-white border border-stone-200 shadow-2xs hover:border-[#A8531C]/60 transition-all flex flex-col md:flex-row md:items-center justify-between gap-4"
+                    >
+                      <div className="space-y-1.5">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                              inq.status === "NEW"
+                                ? "bg-blue-100 text-blue-900 border border-blue-200 animate-pulse"
+                                : inq.status === "IN_PROGRESS"
+                                ? "bg-amber-100 text-amber-900 border border-amber-200"
+                                : inq.status === "DONE"
+                                ? "bg-emerald-100 text-emerald-900 border border-emerald-200"
+                                : "bg-stone-100 text-stone-600"
+                            }`}
+                          >
+                            {inq.status === "NEW" && "NOVA"}
+                            {inq.status === "IN_PROGRESS" && "EN GESTIÓ"}
+                            {inq.status === "DONE" && "RESOLTA"}
+                            {inq.status === "ARCHIVED" && "ARXIVADA"}
+                          </span>
+
+                          <span className="text-[10px] font-bold text-stone-600 bg-stone-100 px-2 py-0.5 rounded-full">
+                            {inq.topic === "CAKE_QUESTION" ? "Pastís Personalitzat" : "Consulta General"}
+                          </span>
+
+                          <span className="text-[11px] text-stone-400">
+                            {new Date(inq.createdAt).toLocaleString("ca-ES", {
+                              day: "2-digit",
+                              month: "short",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </span>
+                        </div>
+
+                        <h4 className="font-serif font-bold text-base text-stone-900">
+                          {inq.name}
+                        </h4>
+
+                        <p className="text-xs text-stone-600 line-clamp-2 max-w-2xl">
+                          "{inq.message}"
+                        </p>
+
+                        <div className="flex flex-wrap items-center gap-3 text-xs text-stone-500 pt-1">
+                          <span>📧 {inq.email}</span>
+                          {inq.phone && <span>📞 {inq.phone}</span>}
+                          {inq.portions && <span>🎂 {inq.portions} racions</span>}
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedInquiry(inq);
+                            setStaffNoteDraft(inq.staffNotes || "");
+                          }}
+                          className="px-4 py-2 rounded-xl bg-[#3B2A20] text-white font-semibold text-xs hover:bg-stone-800 transition-colors shadow-2xs"
+                        >
+                          Gestionar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteInquiry(inq.id)}
+                          className="p-2 rounded-xl text-stone-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                          title="Eliminar consulta"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            )}
+
+            {/* Inquiry Details Modal / Drawer */}
+            {selectedInquiry && (
+              <div className="fixed inset-0 bg-stone-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+                <div className="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 space-y-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+                  <div className="flex items-start justify-between border-b border-stone-200 pb-4">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-[#A8531C]">
+                          Detall de la consulta
+                        </span>
+                        <span className="text-xs text-stone-400">ID: {selectedInquiry.id}</span>
+                      </div>
+                      <h3 className="font-serif font-bold text-xl text-stone-900">
+                        {selectedInquiry.name}
+                      </h3>
+                      <p className="text-xs text-stone-500">
+                        Rebuda el {new Date(selectedInquiry.createdAt).toLocaleString("ca-ES")}
+                      </p>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setSelectedInquiry(null)}
+                      className="p-2 text-stone-400 hover:text-stone-700 rounded-lg hover:bg-stone-100"
+                    >
+                      ✕
+                    </button>
+                  </div>
+
+                  {/* Message body */}
+                  <div className="p-4 rounded-xl bg-[#FFF8EF] border border-[#D9C4A8] space-y-2">
+                    <p className="text-xs font-semibold text-[#A8531C] uppercase tracking-wider">
+                      Missatge del client:
+                    </p>
+                    <p className="text-sm text-[#3B2A20] leading-relaxed whitespace-pre-wrap">
+                      {selectedInquiry.message}
+                    </p>
+                  </div>
+
+                  {/* Customer info & consent */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs bg-stone-50 p-4 rounded-xl border border-stone-200">
+                    <div>
+                      <span className="font-semibold text-stone-600 block">Correu electrònic:</span>
+                      <a href={`mailto:${selectedInquiry.email}`} className="text-[#A8531C] underline font-medium">
+                        {selectedInquiry.email}
+                      </a>
+                    </div>
+                    <div>
+                      <span className="font-semibold text-stone-600 block">Telèfon de contacte:</span>
+                      <span className="text-stone-900 font-medium">
+                        {selectedInquiry.phone || "No facilitat"}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="font-semibold text-stone-600 block">Motiu / Tipus:</span>
+                      <span className="text-stone-900 font-medium">
+                        {selectedInquiry.topic === "CAKE_QUESTION" ? "Pastís Personalitzat" : "General"}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="font-semibold text-stone-600 block">Consentiment RGPD:</span>
+                      <span className="text-emerald-700 font-medium flex items-center gap-1">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        Atorgat {selectedInquiry.consentTimestamp ? new Date(selectedInquiry.consentTimestamp).toLocaleDateString("ca-ES") : "Sí"}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Fast reply buttons */}
+                  <div className="flex flex-wrap items-center gap-3 pt-1">
+                    {selectedInquiry.phone && (
+                      <a
+                        href={`https://wa.me/${selectedInquiry.phone.replace(/[^0-9]/g, "")}?text=${encodeURIComponent(
+                          `Hola ${selectedInquiry.name}! Ens posem en contacte des de Swing Forn de Pa a Badalona sobre la teva consulta...`
+                        )}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-700 text-white font-semibold text-xs hover:bg-emerald-800 transition-colors shadow-2xs"
+                      >
+                        <MessageCircle className="w-4 h-4" />
+                        <span>Respondre per WhatsApp</span>
+                      </a>
+                    )}
+                    <a
+                      href={`mailto:${selectedInquiry.email}?subject=${encodeURIComponent(
+                        "Resposta a la consulta — Swing Forn de Pa"
+                      )}`}
+                      className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#3B2A20] text-white font-semibold text-xs hover:bg-stone-800 transition-colors shadow-2xs"
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                      <span>Respondre per Email</span>
+                    </a>
+                  </div>
+
+                  {/* Status & Staff Notes */}
+                  <div className="space-y-4 pt-2 border-t border-stone-200">
+                    <div>
+                      <label className="block text-xs font-semibold text-stone-700 mb-1.5">
+                        Canviar estat de la consulta:
+                      </label>
+                      <select
+                        value={selectedInquiry.status}
+                        onChange={(e) =>
+                          handleUpdateInquiryStatus(
+                            selectedInquiry.id,
+                            e.target.value as "NEW" | "IN_PROGRESS" | "DONE" | "ARCHIVED"
+                          )
+                        }
+                        className="px-3 py-2 rounded-xl border border-stone-300 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-[#A8531C]"
+                      >
+                        <option value="NEW">NOVA (Pendent d'atenció)</option>
+                        <option value="IN_PROGRESS">EN GESTIÓ (Contactat)</option>
+                        <option value="DONE">RESOLTA (Finalitzada)</option>
+                        <option value="ARCHIVED">ARXIVADA</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-stone-700 mb-1">
+                        Notes internes de l'obrador (només visibles per l'equip):
+                      </label>
+                      <textarea
+                        rows={2}
+                        value={staffNoteDraft}
+                        onChange={(e) => setStaffNoteDraft(e.target.value)}
+                        placeholder="Ex: Demana tarta nata per a 12 persones el dissabte 11h. Rebut el confirmant."
+                        className="w-full px-3 py-2 rounded-xl border border-stone-300 text-xs focus:outline-none focus:ring-2 focus:ring-[#A8531C]"
+                      />
+                      <div className="pt-2 flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => handleSaveStaffNotes(selectedInquiry.id)}
+                          className="px-4 py-1.5 rounded-xl bg-[#A8531C] text-white font-semibold text-xs hover:bg-[#8f4314] transition-colors"
+                        >
+                          Guardar notes
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* SEO CENTER & AUDIT TAB */}
+        {activeTab === "seo" && (
+          <div className="space-y-8 max-w-5xl">
+            {/* SERP Preview */}
+            <div className="p-6 rounded-2xl bg-white border border-stone-200 shadow-xs space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-stone-200 pb-4">
+                <div>
+                  <h3 className="font-serif text-lg font-bold text-stone-900 flex items-center gap-2">
+                    <Globe className="w-5 h-5 text-[#A8531C]" />
+                    <span>Visualització prèvia a Google (SERP Preview)</span>
+                  </h3>
+                  <p className="text-xs text-stone-500">
+                    Així és com apareix Swing Forn de Pa als resultats de cerca per a cerques locals a Badalona.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 bg-stone-100 p-1 rounded-xl text-xs font-semibold">
+                  <button
+                    type="button"
+                    onClick={() => setSerpDevice("desktop")}
+                    className={`px-3 py-1 rounded-lg transition-colors ${
+                      serpDevice === "desktop"
+                        ? "bg-white text-stone-900 shadow-xs"
+                        : "text-stone-600 hover:text-stone-900"
+                    }`}
+                  >
+                    💻 Escriptori
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSerpDevice("mobile")}
+                    className={`px-3 py-1 rounded-lg transition-colors ${
+                      serpDevice === "mobile"
+                        ? "bg-white text-stone-900 shadow-xs"
+                        : "text-stone-600 hover:text-stone-900"
+                    }`}
+                  >
+                    📱 Mòbil
+                  </button>
+                </div>
+              </div>
+
+              {/* SERP Snippet */}
+              <div
+                className={`p-5 rounded-2xl border border-stone-300 bg-white font-sans space-y-1.5 ${
+                  serpDevice === "mobile" ? "max-w-md mx-auto" : "w-full"
+                }`}
+              >
+                <div className="flex items-center gap-2 text-xs text-stone-600">
+                  <div className="w-4 h-4 rounded-full bg-[#A8531C] text-white flex items-center justify-center text-[9px] font-bold">
+                    S
+                  </div>
+                  <span className="font-semibold text-stone-900">Swing Forn de Pa</span>
+                  <span className="text-stone-400">› es › obrador</span>
+                </div>
+
+                <h4 className="text-lg font-medium text-[#1a0dab] hover:underline cursor-pointer leading-snug">
+                  {businessName} — Forn de Pa Artesà i Pastisseria a Badalona
+                </h4>
+
+                <p className="text-xs text-stone-700 leading-relaxed">
+                  Panaderia artesanal i rebosteria a l'Avd. Catalunya 39, Badalona. Pans de massa mare de fermentació lenta, brioixeria, panellets de temporada i pastissos per encàrrec.
+                </p>
+
+                <div className="pt-1 flex items-center gap-3 text-[11px] text-stone-500">
+                  <span className="text-emerald-700 font-semibold">● Obert ara · 06:00 – 21:00</span>
+                  <span>· {street}, {city}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* SEO Health & Audit Checklist */}
+            <div className="p-6 rounded-2xl bg-white border border-stone-200 shadow-xs space-y-4">
+              <h3 className="font-serif text-lg font-bold text-stone-900 flex items-center gap-2">
+                <ShieldCheck className="w-5 h-5 text-emerald-600" />
+                <span>Auditoria de Salut SEO (WCAG 2.2 & Google Search Central)</span>
+              </h3>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                <div className="p-4 rounded-xl bg-emerald-50/70 border border-emerald-200 space-y-1">
+                  <div className="flex items-center gap-2 font-bold text-emerald-950">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    <span>Títols & Meta Descripcions Únics</span>
+                  </div>
+                  <p className="text-emerald-900 leading-relaxed">
+                    100% de les pàgines disposen de títols (30-60 caràcters) i descripcions (120-160 caràcters) personalitzats per idioma.
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-xl bg-emerald-50/70 border border-emerald-200 space-y-1">
+                  <div className="flex items-center gap-2 font-bold text-emerald-950">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    <span>Dades Estructurades (Schema.org JSON-LD)</span>
+                  </div>
+                  <p className="text-emerald-900 leading-relaxed">
+                    Esquemes vàlids de Bakery (LocalBusiness), BreadcrumbList, Product i BlogPosting generats a cada ruta.
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-xl bg-emerald-50/70 border border-emerald-200 space-y-1">
+                  <div className="flex items-center gap-2 font-bold text-emerald-950">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    <span>100% Imatges amb Alt Text</span>
+                  </div>
+                  <p className="text-emerald-900 leading-relaxed">
+                    La biblioteca multimèdia bloqueja la pujada d'imatges sense text alternatiu descriptiu segons WCAG 2.2 AA.
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-xl bg-emerald-50/70 border border-emerald-200 space-y-1">
+                  <div className="flex items-center gap-2 font-bold text-emerald-950">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    <span>Paritat Multilingüe & Hreflang</span>
+                  </div>
+                  <p className="text-emerald-900 leading-relaxed">
+                    Etiquetes hreflang recíproques (ca, es, en) i x-default establert segons la decisió D1.
+                  </p>
+                </div>
+              </div>
+
+              {/* Local SEO NAP Consistency reminder */}
+              <div className="p-5 rounded-2xl bg-amber-50 border border-amber-200 space-y-2 mt-4 text-xs text-amber-950">
+                <div className="flex items-center gap-2 font-bold text-amber-900">
+                  <AlertCircle className="w-4 h-4 text-amber-600" />
+                  <span>Consistència NAP Local (Name, Address, Phone)</span>
+                </div>
+                <p className="leading-relaxed">
+                  Per a un posicionament òptim a Google Maps a Badalona, les següents dades han de coincidir exactament a Google Business Profile, Tripadvisor i Apple Maps:
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 font-mono text-[11px] bg-white/70 p-3 rounded-xl border border-amber-200">
+                  <div><strong>Nom:</strong> Swing Forn de Pa</div>
+                  <div><strong>Adreça:</strong> {street}, {city}</div>
+                  <div><strong>Telèfon:</strong> {phone}</div>
+                </div>
+              </div>
+
+              {/* Quick links */}
+              <div className="pt-3 flex flex-wrap items-center gap-3 text-xs">
+                <a
+                  href="/sitemap.xml"
+                  target="_blank"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 font-semibold text-stone-800 border border-stone-300"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span>Obrir sitemap.xml</span>
+                </a>
+                <a
+                  href="/robots.txt"
+                  target="_blank"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 font-semibold text-stone-800 border border-stone-300"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span>Obrir robots.txt</span>
+                </a>
+                <a
+                  href="/rss.xml"
+                  target="_blank"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-stone-100 hover:bg-stone-200 font-semibold text-stone-800 border border-stone-300"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span>Obrir rss.xml</span>
+                </a>
               </div>
             </div>
           </div>

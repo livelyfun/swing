@@ -394,9 +394,52 @@ class ContentStore {
     },
   ];
 
+  private inquiries: InquiryItem[] = [
+    {
+      id: "inq-1",
+      createdAt: "2026-10-31T10:14:00Z",
+      name: "Laia Valls",
+      email: "laia.valls@badalona.cat",
+      phone: "+34 622 11 22 33",
+      topic: "CAKE_QUESTION",
+      message: "Hola! Voldria saber si feu pastissos de nata i trufa per a 15 persones de cara al proper dissabte.",
+      portions: 15,
+      consentGiven: true,
+      consentTimestamp: "2026-10-31T10:14:00Z",
+      status: "NEW",
+      staffNotes: "Pendent de trucar per confirmar hora de recollida a l'obrador.",
+    },
+    {
+      id: "inq-2",
+      createdAt: "2026-10-30T16:45:00Z",
+      name: "Marc Rovira",
+      email: "mrovira@gmail.com",
+      phone: "+34 655 44 33 22",
+      topic: "GENERAL",
+      message: "Bona tarda, teniu panellets d'ametlla i pinyons disponibles durant tot el cap de setmana de Tots Sants?",
+      consentGiven: true,
+      consentTimestamp: "2026-10-30T16:45:00Z",
+      status: "DONE",
+      staffNotes: "Respost per WhatsApp: sí, fornada diària disponible.",
+    },
+  ];
+
   // Getters
   public getProducts() {
     return [...this.products];
+  }
+
+  public getProductBySlug(slug: string, locale?: Locale) {
+    const clean = slug.toLowerCase();
+    return (
+      this.products.find(
+        (p) =>
+          p.slug.ca.toLowerCase() === clean ||
+          p.slug.es.toLowerCase() === clean ||
+          p.slug.en.toLowerCase() === clean ||
+          p.id.toLowerCase() === clean
+      ) ?? null
+    );
   }
 
   public getCategories() {
@@ -407,8 +450,34 @@ class ContentStore {
     return [...this.campaigns];
   }
 
+  public getCampaignBySlug(slug: string, locale?: Locale) {
+    const clean = slug.toLowerCase();
+    return (
+      this.campaigns.find(
+        (c) =>
+          c.slug.ca.toLowerCase() === clean ||
+          c.slug.es.toLowerCase() === clean ||
+          c.slug.en.toLowerCase() === clean ||
+          c.id.toLowerCase() === clean
+      ) ?? null
+    );
+  }
+
   public getPosts() {
     return [...this.posts];
+  }
+
+  public getPostBySlug(slug: string, locale?: Locale) {
+    const clean = slug.toLowerCase();
+    return (
+      this.posts.find(
+        (p) =>
+          p.slug.ca.toLowerCase() === clean ||
+          p.slug.es.toLowerCase() === clean ||
+          p.slug.en.toLowerCase() === clean ||
+          p.id.toLowerCase() === clean
+      ) ?? null
+    );
   }
 
   public getFaqs() {
@@ -419,7 +488,33 @@ class ContentStore {
     return [...this.testimonials];
   }
 
+  public getInquiries() {
+    return [...this.inquiries];
+  }
+
+  public getInquiryById(id: string) {
+    return this.inquiries.find((i) => i.id === id) ?? null;
+  }
+
   // Mutations
+  public addInquiry(inquiry: InquiryItem) {
+    this.inquiries.unshift(inquiry);
+    return inquiry;
+  }
+
+  public updateInquiry(id: string, updates: Partial<InquiryItem>) {
+    const idx = this.inquiries.findIndex((i) => i.id === id);
+    if (idx !== -1) {
+      this.inquiries[idx] = { ...this.inquiries[idx], ...updates };
+      return this.inquiries[idx];
+    }
+    return null;
+  }
+
+  public deleteInquiry(id: string) {
+    this.inquiries = this.inquiries.filter((i) => i.id !== id);
+  }
+
   public addProduct(product: ProductItem) {
     this.products.unshift(product);
     return product;
@@ -452,6 +547,10 @@ class ContentStore {
     return null;
   }
 
+  public deleteCampaign(id: string) {
+    this.campaigns = this.campaigns.filter((c) => c.id !== id);
+  }
+
   public addPost(post: BlogPostItem) {
     this.posts.unshift(post);
     return post;
@@ -464,6 +563,10 @@ class ContentStore {
       return this.posts[idx];
     }
     return null;
+  }
+
+  public deletePost(id: string) {
+    this.posts = this.posts.filter((p) => p.id !== id);
   }
 
   public addFaq(faq: FaqItem) {

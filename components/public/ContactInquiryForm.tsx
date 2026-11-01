@@ -4,6 +4,8 @@ import React, { useState } from "react";
 import { Locale } from "@/lib/i18n";
 import { Send, CheckCircle2, ShieldCheck, Clock } from "lucide-react";
 
+import { submitInquiryAction } from "@/server/actions/content";
+
 interface ContactInquiryFormProps {
   locale: Locale;
   prefilledTopic?: "GENERAL" | "CAKE_QUESTION";
@@ -23,13 +25,16 @@ export function ContactInquiryForm({
   const [honeypot, setHoneypot] = useState(""); // Bot honeypot field
   const [formSubmitted, setFormSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMessage(null);
+
     // Bot caught by honeypot
     if (honeypot) return;
     if (!consent) {
-      alert(
+      setErrorMessage(
         locale === "ca"
           ? "Cal acceptar la política de privacitat per enviar la consulta."
           : "Debe aceptar la política de privacidad para enviar la consulta."
@@ -38,11 +43,27 @@ export function ContactInquiryForm({
     }
 
     setIsSubmitting(true);
-    // Simulate submission delay and store in CMS
-    setTimeout(() => {
+    try {
+      const res = await submitInquiryAction({
+        name,
+        email,
+        phone,
+        topic,
+        message,
+        consent,
+        honeypot,
+      });
+
+      if (res.success) {
+        setFormSubmitted(true);
+      } else {
+        setErrorMessage(res.error || "Error en enviar la consulta.");
+      }
+    } catch {
+      setErrorMessage("Hi ha hagut un error inesperat. Torna-ho a provar.");
+    } finally {
       setIsSubmitting(false);
-      setFormSubmitted(true);
-    }, 600);
+    }
   };
 
   if (formSubmitted) {
@@ -90,6 +111,12 @@ export function ContactInquiryForm({
             : "Te atenderemos directamente desde nuestro obrador para pedidos o consultas de alérgenos."}
         </p>
       </div>
+
+      {errorMessage && (
+        <div className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-800">
+          {errorMessage}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
         <div>

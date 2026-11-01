@@ -10,6 +10,14 @@ import {
   TestimonialItem,
 } from "@/lib/content-store";
 
+function safeRevalidate(path: string, type?: "layout" | "page") {
+  try {
+    revalidatePath(path, type);
+  } catch {
+    // Ignore when running outside Next.js request context (e.g. unit tests)
+  }
+}
+
 export async function saveProductAction(
   productData: Omit<ProductItem, "id" | "allergensReviewedAt" | "allergensReviewedBy"> & { id?: string },
   allergenReviewConfirmed: boolean,
@@ -45,7 +53,7 @@ export async function saveProductAction(
     });
   }
 
-  revalidatePath("/", "layout");
+  safeRevalidate("/", "layout");
   return { success: true, message: "Producte desat correctament amb al·lèrgens registrats." };
 }
 
@@ -59,7 +67,7 @@ export async function saveCampaignAction(campaignData: SeasonalCampaign) {
     });
   }
 
-  revalidatePath("/", "layout");
+  safeRevalidate("/", "layout");
   return { success: true, message: "Campanya de temporada desada correctament." };
 }
 
@@ -73,7 +81,7 @@ export async function saveBlogPostAction(postData: BlogPostItem) {
     });
   }
 
-  revalidatePath("/", "layout");
+  safeRevalidate("/", "layout");
   return { success: true, message: "Article del blog desat correctament." };
 }
 
@@ -83,7 +91,7 @@ export async function saveFaqAction(faqData: FaqItem) {
     id: faqData.id || `faq-${Date.now()}`,
   });
 
-  revalidatePath("/", "layout");
+  safeRevalidate("/", "layout");
   return { success: true, message: "Pregunta freqüent desada." };
 }
 
@@ -93,6 +101,102 @@ export async function saveTestimonialAction(testimonialData: TestimonialItem) {
     id: testimonialData.id || `test-${Date.now()}`,
   });
 
-  revalidatePath("/", "layout");
+  safeRevalidate("/", "layout");
   return { success: true, message: "Opinió de client desada amb consentiment." };
+}
+
+export interface SubmitInquiryInput {
+  name: string;
+  email: string;
+  phone?: string;
+  topic?: "GENERAL" | "CAKE_QUESTION" | "ALLERGEN_INFO" | "HOURS_VISIT";
+  message: string;
+  portions?: number;
+  consent: boolean;
+  honeypot?: string;
+}
+
+export async function submitInquiryAction(input: SubmitInquiryInput) {
+  // 1. Bot check via honeypot
+  if (input.honeypot && input.honeypot.trim().length > 0) {
+    // Silently succeed for bots
+    return { success: true, message: "Consulta rebuda." };
+  }
+
+  // 2. Validate consent
+  if (!input.consent) {
+    return {
+      success: false,
+      error: "Cal acceptar la política de privacitat per tramitar la consulta.",
+    };
+  }
+
+  // 3. Validate required fields
+  if (!input.name || !input.name.trim()) {
+    return { success: false, error: "El nom és obligatori." };
+  }
+  if (!input.email || !input.email.includes("@")) {
+    return { success: false, error: "Correu electrònic invàlid." };
+  }
+  if (!input.message || !input.message.trim()) {
+    return { success: false, error: "El missatge no pot estar buit." };
+  }
+
+  const newInquiry = contentStore.addInquiry({
+    id: `inq-${Date.now()}`,
+    createdAt: new Date().toISOString(),
+    name: input.name.trim(),
+    email: input.email.trim(),
+    phone: (input.phone || "").trim(),
+    topic: input.topic || "GENERAL",
+    message: input.message.trim(),
+    portions: input.portions,
+    consentGiven: true,
+    consentTimestamp: new Date().toISOString(),
+    status: "NEW",
+  });
+
+  safeRevalidate("/admin");
+  return {
+    success: true,
+    message: "Consulta enviada correctament. Et respondrem en menys de 24 hores.",
+    inquiryId: newInquiry.id,
+  };
+}
+
+export async function updateInquiryStatusAction(
+  id: string,
+  status: "NEW" | "IN_PROGRESS" | "DONE" | "ARCHIVED",
+  staffNotes?: string
+) {
+  contentStore.updateInquiry(id, {
+    status,
+    ...(staffNotes !== undefined ? { staffNotes } : {}),
+  });
+  safeRevalidate("/admin");
+  return { success: true, message: "Estat de la consulta actualitzat." };
+}
+
+export async function deleteInquiryAction(id: string) {
+  contentStore.deleteInquiry(id);
+  safeRevalidate("/admin");
+  return { success: true, message: "Consulta eliminada del sistema." };
+}
+
+export async function deleteProductAction(id: string) {
+  contentStore.deleteProduct(id);
+  safeRevalidate("/", "layout");
+  return { success: true, message: "Producte eliminat." };
+}
+
+export async function deleteCampaignAction(id: string) {
+  contentStore.deleteCampaign(id);
+  safeRevalidate("/", "layout");
+  return { success: true, message: "Campanya eliminada." };
+}
+
+export async function deletePostAction(id: string) {
+  contentStore.deletePost(id);
+  safeRevalidate("/", "layout");
+  return { success: true, message: "Article eliminat." };
 }

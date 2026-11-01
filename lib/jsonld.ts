@@ -23,12 +23,12 @@ export function buildBakeryJsonLd(
   baseUrl: string
 ) {
   const openingHoursSpecification = weeklyHours
-    .filter((h) => !h.closed && h.openTime && h.closeTime)
+    .filter((h) => !h.isClosed && h.opensAt && h.closesAt)
     .map((h) => ({
       "@type": "OpeningHoursSpecification",
       dayOfWeek: DAY_MAP_SCHEMA[h.dayOfWeek] || "Monday",
-      opens: h.openTime,
-      closes: h.closeTime,
+      opens: h.opensAt,
+      closes: h.closesAt,
     }));
 
   return {

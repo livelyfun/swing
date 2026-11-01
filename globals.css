@@ -1,0 +1,96 @@
+@import "tailwindcss";
+
+/* =====================================================================
+   Swing Forn de Pa — design tokens (placeholders, CMS-editable later)
+   Section 7.2 — replace with owner's brand; contrast gate ≥4.5:1.
+   ===================================================================== */
+
+:root {
+  /* Warm bakery palette (placeholders) */
+  --background: #FFF8EF;
+  --foreground: #3B2A20;
+
+  --primary: #A8531C;      /* baked orange — AA on cream for text */
+  --primary-foreground: #FFFFFF;
+
+  --accent: #E9B44C;       /* golden — decorative/large UI only, not body text */
+  --accent-foreground: #3B2A20;
+
+  --muted: #F1E4D3;
+  --muted-foreground: #5C4638;
+
+  --border: #D9C4A8;
+
+  --font-heading: "Source Serif 4", ui-serif, Georgia, serif;
+  --font-body: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+
+  --radius: 14px;
+
+  /* Inline theme for Tailwind v4 */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --font-sans: var(--font-body);
+  --font-serif: var(--font-heading);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-body);
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+a {
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}

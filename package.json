@@ -10,7 +10,8 @@
     "test": "tsx --test lib/bakery.test.ts",
     "seed": "tsx prisma/seed.ts",
     "seed:demo": "DEMO_MODE=true tsx prisma/seed.ts",
-    "check:hardcoded": "tsx scripts/check-no-hardcoded.ts"
+    "check:hardcoded": "tsx scripts/check-no-hardcoded.ts",
+    "check:contrast": "tsx scripts/check-contrast.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

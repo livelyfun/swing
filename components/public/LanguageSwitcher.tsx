@@ -3,16 +3,16 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Locale, SUPPORTED_LOCALES, LOCALE_LABELS } from "@/lib/i18n";
+import { Locale, SUPPORTED_LOCALES } from "@/lib/i18n";
 
 interface LanguageSwitcherProps {
   currentLocale: Locale;
+  className?: string;
 }
 
-export function LanguageSwitcher({ currentLocale }: LanguageSwitcherProps) {
+export function LanguageSwitcher({ currentLocale, className = "" }: LanguageSwitcherProps) {
   const pathname = usePathname();
 
-  // Replace current locale segment in URL path
   const getLocalizedPath = (targetLocale: Locale) => {
     if (!pathname) return `/${targetLocale}`;
     const segments = pathname.split("/").filter(Boolean);
@@ -22,23 +22,27 @@ export function LanguageSwitcher({ currentLocale }: LanguageSwitcherProps) {
   };
 
   return (
-    <div className="flex items-center gap-1 text-xs font-semibold bg-stone-100/80 p-0.5 rounded-lg border border-stone-200">
+    <nav
+      aria-label="Selecció d'idioma"
+      className={`inline-flex items-center gap-0.5 p-0.5 rounded-lg border border-[#0E1540]/15 bg-[#FFFBF0] ${className}`}
+    >
       {SUPPORTED_LOCALES.map((locale) => {
         const isActive = locale === currentLocale;
         return (
           <Link
             key={locale}
             href={getLocalizedPath(locale)}
-            className={`px-2 py-1 rounded transition-colors ${
+            aria-current={isActive ? "page" : undefined}
+            className={`px-2 py-1 rounded-md text-xs font-semibold uppercase tracking-wider transition-colors ${
               isActive
-                ? "bg-[#A8531C] text-white shadow-xs font-bold"
-                : "text-stone-700 hover:text-[#A8531C] hover:bg-stone-200/60"
+                ? "bg-[#0E1540] text-[#FFFBF0] shadow-xs"
+                : "text-[#0E1540]/70 hover:text-[#0E1540] hover:bg-[#0E1540]/5"
             }`}
           >
-            {locale.toUpperCase()}
+            {locale}
           </Link>
         );
       })}
-    </div>
+    </nav>
   );
 }

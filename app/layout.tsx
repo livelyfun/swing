@@ -1,24 +1,34 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import { Bricolage_Grotesque, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
+const bricolage = Bricolage_Grotesque({
+  subsets: ["latin"],
+  variable: "--font-bricolage",
+  display: "swap",
+});
+
+const plusJakarta = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  variable: "--font-sans-body",
+  display: "swap",
+});
 
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#FFF8EF",
+  themeColor: "#0E1540",
 };
 
 export const metadata: Metadata = {
   title: {
     template: "%s | Swing Forn de Pa",
-    default: "Swing Forn de Pa — Forn de pa a Badalona",
+    default: "Swing Forn de Pa — Obrador Artesà a Badalona",
   },
-  description: "Forn de pa i pastisseria a Badalona. Pan, pastissos i tartes personalitzades.",
+  description: "Forn de pa i brioixeria artesana a Badalona (Avda. Catalunya 39). Pa de massa mare, brioixeria del dia i especialitats de temporada.",
   openGraph: {
     siteName: "Swing Forn de Pa",
-    locale: "es_ES",
+    locale: "ca_ES",
     type: "website",
   },
 };
@@ -29,8 +39,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="es" className={`${inter.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col">{children}</body>
+    <html
+      lang="es"
+      className={`${bricolage.variable} ${plusJakarta.variable} h-full antialiased`}
+    >
+      <body className="min-h-full flex flex-col font-sans bg-[#FFFBF0] text-[#0E1540]">
+        {children}
+      </body>
     </html>
   );
 }

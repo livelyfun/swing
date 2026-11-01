@@ -1,40 +1,45 @@
 @import "tailwindcss";
 
 /* =====================================================================
-   Swing Forn de Pa — design tokens (placeholders, CMS-editable later)
-   Section 7.2 — replace with owner's brand; contrast gate ≥4.5:1.
+   Swing Forn de Pa — Blue Hour Design System Tokens
    ===================================================================== */
 
-:root {
-  /* Warm bakery palette (placeholders) */
-  --background: #FFF8EF;
-  --foreground: #3B2A20;
-
-  --primary: #A8531C;      /* baked orange — AA on cream for text */
-  --primary-foreground: #FFFFFF;
-
-  --accent: #E9B44C;       /* golden — decorative/large UI only, not body text */
-  --accent-foreground: #3B2A20;
-
-  --muted: #F1E4D3;
-  --muted-foreground: #5C4638;
-
-  --border: #D9C4A8;
-
-  --font-heading: "Source Serif 4", ui-serif, Georgia, serif;
-  --font-body: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
-
-  --radius: 14px;
-}
-
 @theme {
-  --color-primary: #A8531C;
-  --color-accent: #E9B44C;
-  --color-muted: #F1E4D3;
-  --color-foreground: #3B2A20;
-  --color-background: #FFF8EF;
+  --color-night: #0E1540;
+  --color-hour: #2236C8;
+  --color-flour: #FFFBF0;
+  --color-sun: #FFD23F;
+  --color-crust: #F07A1F;
+  --color-tomato: #C9341F;
+  --color-sage: #CFE3C2;
+
+  --font-display: var(--font-bricolage), "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-sans-body), "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
 }
 
+:root {
+  --background: #FFFBF0; /* flour */
+  --foreground: #0E1540; /* night */
+
+  --color-night: #0E1540;
+  --color-hour: #2236C8;
+  --color-flour: #FFFBF0;
+  --color-sun: #FFD23F;
+  --color-crust: #F07A1F;
+  --color-tomato: #C9341F;
+  --color-sage: #CFE3C2;
+
+  --primary: #2236C8;
+  --primary-foreground: #FFFBF0;
+  --accent: #F07A1F;
+  --accent-foreground: #0E1540;
+
+  --border: rgba(14, 21, 64, 0.12);
+  --border-subtle: rgba(14, 21, 64, 0.06);
+
+  --font-heading: var(--font-bricolage), "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-body: var(--font-sans-body), "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+}
 
 * {
   box-sizing: border-box;
@@ -44,20 +49,22 @@
 
 html {
   scroll-behavior: smooth;
+  background-color: #0E1540; /* Night foundation for dark hero edge */
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background-color: #FFFBF0;
+  color: #0E1540;
   font-family: var(--font-body);
   line-height: 1.5;
   min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
 }
 
 h1, h2, h3, h4, h5, h6 {
   font-family: var(--font-heading);
-  font-weight: 600;
-  line-height: 1.25;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
 }
 
 a {
@@ -66,18 +73,77 @@ a {
 }
 
 p a, .prose a {
-  color: var(--primary);
+  color: #2236C8;
   text-decoration: underline;
-  text-underline-offset: 2px;
+  text-underline-offset: 3px;
 }
 
 a:focus-visible,
 button:focus-visible,
-input:focus-visible {
-  outline: 2px solid var(--primary);
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid #FFD23F;
   outline-offset: 2px;
 }
 
+/* Arch Geometries */
+.arch-top {
+  border-top-left-radius: 999px;
+  border-top-right-radius: 999px;
+}
+
+.arch-window {
+  border-radius: 999px 999px 16px 16px;
+}
+
+/* Marquee Loop */
+@keyframes marquee-scroll {
+  from {
+    transform: translateX(0%);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee-track {
+  display: flex;
+  width: max-content;
+  animation: marquee-scroll 28s linear infinite;
+  will-change: transform;
+}
+
+.animate-marquee-track:hover,
+.animate-marquee-track:focus-within {
+  animation-play-state: paused;
+}
+
+/* Pendulum Swing */
+@keyframes pendulum-swing {
+  0% { transform: rotate(0deg); }
+  25% { transform: rotate(-5deg); }
+  50% { transform: rotate(4deg); }
+  75% { transform: rotate(-2deg); }
+  100% { transform: rotate(0deg); }
+}
+
+.swing-hover {
+  transform-origin: top center;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.swing-hover:hover {
+  animation: pendulum-swing 0.65s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+/* Catalan Ela Geminada Typography Guard */
+.catalan-punct {
+  font-variant-numeric: normal;
+  letter-spacing: normal;
+}
+
+/* Accessible Screen Reader */
 .sr-only {
   position: absolute;
   width: 1px;
@@ -90,8 +156,16 @@ input:focus-visible {
   border-width: 0;
 }
 
-/* Reduced motion */
+/* Reduced Motion Override */
 @media (prefers-reduced-motion: reduce) {
-  html { scroll-behavior: auto; }
-  * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
 }
